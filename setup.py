@@ -9,5 +9,6 @@ setup(
     author="Seo Jung Park",
     author_email="seojpark91@gmail.com",
     description="A movie recommender system creation practice package",
+    url = "https://github.com/seojpark91/Movie_Recommender_System"
     zip_safe=False
 )
