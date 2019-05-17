@@ -3,7 +3,12 @@ import numpy as np
 from scipy import spatial
 
 class MovieRecommendSys:
-    
+    """
+    Movie Recommend System object contains
+    metadata_df : contains general movie information including budget, genres, cast, language, title, etc
+    rating_df : movie rated by user (id)
+    links_df : shows links between movie id and Imdb movie id
+    """
     def __init__(self):
         metadata_df = pd.read_csv("movie_metadata.csv")
         rating_df = pd.read_csv("movie_rating.csv")
@@ -18,7 +23,12 @@ class MovieRecommendSys:
         self.recommend = None
 
     def make_user_based_df(self, user_limit=100, movie_limit=100):
-        
+        """
+        make user based dataframe
+        parameter:
+        user_limit : number of users 
+        movie_limit : number of movies 
+        """
         user_counts_df = self.rating_df.groupby('userId').size().reset_index(name = 'user_rating_count')
         user_counts_df = user_counts_df.sort_values(by=["user_rating_count"], ascending=False)
         
@@ -40,6 +50,9 @@ class MovieRecommendSys:
         return self.user_df
     
     def euclidean_similarity(self, vector_1, vector_2):
+        """
+        find euclidean similarity between two vectors 
+        """
         idx = vector_1.nonzero()[0]
         if len(idx) == 0:
             return 0
@@ -52,6 +65,9 @@ class MovieRecommendSys:
         return np.linalg.norm(vector_1 - vector_2)
     
     def cosine_similarity(self, vector_1, vector_2):
+        """
+        find cosine similarity between two vectors 
+        """
         idx = vector_1.nonzero()[0]
         if len(idx) == 0:
             return 0
@@ -64,6 +80,9 @@ class MovieRecommendSys:
         return 1- spatial.distance.cosine(vector_1, vector_2)
     
     def similarity_matrix(self, similarity_func):
+        """
+        get a similairity matrix with user chosen similarity (cosine or euclidean)
+        """
         index = self.user_df.index   
         matrix = []
         for idx_1, value_1 in self.user_df.iterrows():
@@ -74,7 +93,10 @@ class MovieRecommendSys:
         self.sm_df = pd.DataFrame(matrix, columns = index, index = index)
         return self.sm_df
     
-    def mean_score(self, target, closer_count): # prediction할 수 있는 matrix 만들기
+    def mean_score(self, target, closer_count): 
+        """
+        make mean score dataframe which can be used for prediction
+        """
         ms_df = self.sm_df.drop(target)
         ms_df = ms_df.sort_values(target, ascending=False)
         ms_df = ms_df[target][:closer_count]
@@ -86,12 +108,19 @@ class MovieRecommendSys:
         return self.pred_df
     
     def _get_recommend_movie_ids(self, r_count=10):
+        """
+        make a movie recommendation dataframe
+        """
         self.recommend_df = self.pred_df.T
         self.recommend_df = self.recommend_df[self.recommend_df["user"]==0] 
         self.recommend_df = self.recommend_df.sort_values("mean", ascending = False)
         return list(self.recommend_df[:r_count].index)
         
     def _id_to_movie(self, id_num):
+         """
+        convert id to movie title 
+        parameter : id
+        """
         pd.options.display.float_format = '{:.0f}'.format
         tmdbId = self.links_df.loc[self.links_df["movieId"] == id_num]["tmdbId"].values[0]
         movie_info = self.metadata_df.loc[self.metadata_df["id"] == str(tmdbId)]
@@ -99,6 +128,9 @@ class MovieRecommendSys:
         return movie_info
     
     def make_movie_info(self):
+        """
+        convert id to movie title 
+        """
         movie_ids = self._get_recommend_movie_ids()
         datas = []
         for movie_id in movie_ids:
@@ -107,6 +139,13 @@ class MovieRecommendSys:
         return pd.DataFrame(datas)
     
     def run(self, similarity_func, target, closer_count=5, r_count=5):
+        """
+        execution function to make a movie recommdation dataframe 
+        similarity_func : euclidean_similarity or cosine_similairty
+        target : user_id
+        closer_count : number of 
+        r_count : desired number of movie recommendation
+        """
         self.sm_df = self.similarity_matrix(similarity_func)
         self.pred_df = self.mean_score(target, closer_count)
         movie_ids = self._get_recommend_movie_ids()
@@ -114,6 +153,9 @@ class MovieRecommendSys:
         return result
     
     def mae(self, value, pred):
+        """
+        calculate mean absolute error 
+        """
         idx = value.nonzero()[0]
         value, pred = np.array(value)[idx], np.array(pred)[idx]
         idx = pred.nonzero()[0]
@@ -121,6 +163,14 @@ class MovieRecommendSys:
         return np.absolute(sum(value-pred)) / len(idx)
     
     def evaluate(self, df, sm_df, closer_count):
+        """
+        evaluation function to find the best hyper parameter (closer_count)
+        
+        parameter:
+        df : user dataframe
+        sm_df : similarity dataframe
+        closer_count : number of users similar to target user 
+        """
         users = df.index
         evaluate_list = []
     
